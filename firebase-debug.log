@@ -1,0 +1,135 @@
+[debug] [2026-01-26T23:37:30.159Z] ----------------------------------------------------------------------
+[debug] [2026-01-26T23:37:30.162Z] Command:       /nix/store/ws50yvm6vzlzf7jzz6n7xh4szddrack1-nodejs-20.19.1/bin/node /nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/lib/bin/firebase.js login
+[debug] [2026-01-26T23:37:30.163Z] CLI Version:   14.26.0
+[debug] [2026-01-26T23:37:30.163Z] Platform:      linux
+[debug] [2026-01-26T23:37:30.163Z] Node Version:  v20.19.1
+[debug] [2026-01-26T23:37:30.164Z] Time:          Mon Jan 26 2026 23:37:30 GMT+0000 (Coordinated Universal Time)
+[debug] [2026-01-26T23:37:30.164Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-26T23:37:30.170Z] No OAuth tokens found
+[debug] [2026-01-26T23:37:30.171Z] No OAuth tokens found
+[error] Failed to fetch Firebase Project from current Studio Workspace: Unable to refresh auth: not yet authenticated.
+[info] i  The Firebase CLI’s MCP server feature can optionally make use of Gemini in Firebase. Learn more about Gemini in Firebase and how it uses your data: https://firebase.google.com/docs/gemini-in-firebase#how-gemini-in-firebase-uses-your-data 
+[info] 
+[info] i  Firebase optionally collects CLI and Emulator Suite usage and error reporting information to help improve our products. Data is collected in accordance with Google's privacy policy (https://policies.google.com/privacy) and is not used to identify you. 
+[info] 
+[info] i  To change your preferences at any time, run `firebase logout` and `firebase login` again. 
+[debug] [2026-01-26T23:38:11.341Z] >>> [apiv2][query] POST https://auth.firebase.tools/attest [none]
+[debug] [2026-01-26T23:38:11.341Z] >>> [apiv2][body] POST https://auth.firebase.tools/attest {"session_id":"26fe84d4-4c16-4170-a788-209b1f2cebf3"}
+[debug] [2026-01-26T23:38:11.728Z] <<< [apiv2][status] POST https://auth.firebase.tools/attest 200
+[debug] [2026-01-26T23:38:11.728Z] <<< [apiv2][body] POST https://auth.firebase.tools/attest {"token":"YTVjtkaRr21GhmNexf2RQrs9M0DCbDxryxMROjaaRWA"}
+[info] 
+[info] To sign in to the Firebase CLI:
+[info] 
+[info] 1. Take note of your session ID:
+[info] 
+[info]    26FE8
+[info] 
+[info] 2. Visit the URL below on any device and follow the instructions to get your code:
+[info] 
+[info]    https://auth.firebase.tools/login?code_challenge=zXmIdzUQqrjvf2qDo2GTylOWCeXTQj5ATkgzL7TVK2o&session=26fe84d4-4c16-4170-a788-209b1f2cebf3&attest=YTVjtkaRr21GhmNexf2RQrs9M0DCbDxryxMROjaaRWA
+[info] 
+[info] 3. Paste or enter the authorization code below once you have it:
+[info] 
+[debug] [2026-01-26T23:39:42.048Z] Error: setRawMode EIO
+    at ReadStream.setRawMode (node:tty:76:24)
+    at [_setRawMode] [as _setRawMode] (node:internal/readline/interface:374:18)
+    at Interface.close (node:internal/readline/interface:524:24)
+    at ReadStream.ontermend (node:internal/readline/interface:260:10)
+    at ReadStream.emit (node:events:536:35)
+    at ReadStream.emit (node:domain:489:12)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-01-26T23:39:42.050Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:161:15)
+    at writeGeneric (node:internal/stream_base_commons:152:3)
+    at Socket._writeGeneric (node:net:958:11)
+    at Socket._write (node:net:970:8)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at Console.log (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/index.js:103:17)
+    at doWrite (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:428:64)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-01-26T23:39:42.051Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:161:15)
+    at writeGeneric (node:internal/stream_base_commons:152:3)
+    at Socket._writeGeneric (node:net:958:11)
+    at Socket._write (node:net:970:8)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at Console.log (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/index.js:103:17)
+    at doWrite (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:428:64)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-01-26T23:39:42.053Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:161:15)
+    at writeGeneric (node:internal/stream_base_commons:152:3)
+    at Socket._writeGeneric (node:net:958:11)
+    at Socket._write (node:net:970:8)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at Console.log (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/index.js:103:17)
+    at doWrite (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:428:64)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-01-26T23:39:42.055Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:161:15)
+    at writeGeneric (node:internal/stream_base_commons:152:3)
+    at Socket._writeGeneric (node:net:958:11)
+    at Socket._write (node:net:970:8)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at Console.log (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/index.js:103:17)
+    at doWrite (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:428:64)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-01-26T23:39:42.056Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:161:15)
+    at writeGeneric (node:internal/stream_base_commons:152:3)
+    at Socket._writeGeneric (node:net:958:11)
+    at Socket._write (node:net:970:8)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at Console.log (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/index.js:103:17)
+    at doWrite (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:428:64)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-01-26T23:39:42.057Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:161:15)
+    at writeGeneric (node:internal/stream_base_commons:152:3)
+    at Socket._writeGeneric (node:net:958:11)
+    at Socket._write (node:net:970:8)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at Console.log (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/index.js:103:17)
+    at doWrite (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:428:64)
+[error] 
+[error] Error: An unexpected error has occurred.
+[debug] [2026-01-26T23:39:42.059Z] Error: write EIO
+    at afterWriteDispatched (node:internal/stream_base_commons:161:15)
+    at writeGeneric (node:internal/stream_base_commons:152:3)
+    at Socket._writeGeneric (node:net:958:11)
+    at Socket._write (node:net:970:8)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at Console.log (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston/lib/winston/transports/console.js:79:23)
+    at Console._write (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/index.js:103:17)
+    at doWrite (/nix/store/c776mhyhgykcld7p90ajrka149ifn61a-firebase-tools-14.26.0/lib/node_modules/firebase-tools/node_modules/winston-transport/node_modules/readable-stream/lib/_stream_writable.js:428:64)
+[error] 
+[error] Error: An unexpected error has occurred.

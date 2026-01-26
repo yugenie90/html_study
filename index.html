@@ -1,40 +1,41 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>오늘 뭐 먹지? - 결정 장애 해결사</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>탐구반 자동 배정</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <!-- ExcelJS (읽기/쓰기 + 스타일 가능) -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
 </head>
 <body>
-    <header>
-        <h1>오늘 뭐 먹지?</h1>
-        <p>결정 장애 해결사</p>
-    </header>
-    <main>
-        <section class="roulette-section">
-            <div class="roulette-container">
-                <div class="roulette-pointer"></div>
-                <canvas id="roulette-canvas" width="400" height="400"></canvas>
-            </div>
-            <button id="spin-button">룰렛 돌리기!</button>
-            <div id="result"></div>
-        </section>
-        <section class="category-container">
-            <h2>카테고리별 랜덤 추천</h2>
-            <div class="category-buttons">
-                <button class="category-button active" data-category="all">전체</button>
-                <button class="category-button" data-category="korean">한식</button>
-                <button class="category-button" data-category="japanese">일식</button>
-                <button class="category-button" data-category="chinese">중식</button>
-                <button class="category-button" data-category="western">양식</button>
-            </div>
-            <div id="category-result"></div>
-        </section>
-    </main>
-    <footer>
-        <p>&copy; 2026 오늘 뭐 먹지?</p>
-    </footer>
-    <script src="main.js"></script>
+  <div class="wrap">
+    <h1>탐구반 자동 배정</h1>
+    <p class="desc">
+      엑셀 1개 업로드(시트: <b>강의정보</b>, <b>학생정보</b>) → 결과 엑셀 다운로드
+    </p>
+
+    <div class="card">
+      <label class="file">
+        <input id="file" type="file" accept=".xlsx" />
+        <span>엑셀 업로드</span>
+      </label>
+
+      <button id="run" disabled>배정 실행</button>
+      <button id="download" disabled>결과 다운로드</button>
+
+      <pre id="log" class="log"></pre>
+    </div>
+
+    <div class="help">
+      <h2>엑셀 컬럼 요구사항</h2>
+      <ul>
+        <li><b>강의정보</b>: 과목, 유형, 반, 강의실, 요일, 교시, 최대인원</li>
+        <li><b>학생정보</b>: 일련번호, 관, 반, 탐구1, 탐구2</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
 </body>
 </html>
