@@ -4,14 +4,14 @@ document.getElementById('report-form').addEventListener('submit', function(event
     const reportOutput = document.getElementById('report-output');
 
     if (reportInput.trim() === '') {
-        alert('Please enter some text to generate a report.');
+        alert('보고서를 생성하려면 텍스트를 입력하세요.');
         return;
     }
 
-    reportOutput.innerHTML = '<p>Generating report...</p>';
+    reportOutput.innerHTML = '<p>보고서를 생성하는 중...</p>';
 
     // Simulate a delay for report generation
     setTimeout(() => {
-        reportOutput.innerHTML = `<p>This is a sample report based on your input: "${reportInput}"</p>`;
+        reportOutput.innerHTML = `<p>입력하신 내용 기반의 샘플 보고서입니다: "${reportInput}"</p>`;
     }, 2000);
 });
