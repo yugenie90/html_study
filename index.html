@@ -1,14 +1,33 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Writer Assistant</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+    <header>
+        <h1>Report Writer Assistant</h1>
+    </header>
+    <main>
+        <section class="assistant-container">
+            <h2>Enter your report details</h2>
+            <form id="report-form">
+                <textarea id="report-input" placeholder="Enter your report topic, keywords, or a brief summary..."></textarea>
+                <button type="submit">Generate Report</button>
+            </form>
+            <div class="result-container">
+                <h2>Generated Report</h2>
+                <div id="report-output">
+                    <p>Your generated report will appear here.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <p>&copy; 2026 Report Writer Assistant</p>
+    </footer>
+    <script src="main.js"></script>
 </body>
 </html>
