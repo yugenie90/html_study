@@ -12,14 +12,18 @@
         <p>결정 장애 해결사</p>
     </header>
     <main>
-        <section class="roulette-container">
-            <canvas id="roulette-canvas" width="400" height="400"></canvas>
+        <section class="roulette-section">
+            <div class="roulette-container">
+                <div class="roulette-pointer"></div>
+                <canvas id="roulette-canvas" width="400" height="400"></canvas>
+            </div>
             <button id="spin-button">룰렛 돌리기!</button>
             <div id="result"></div>
         </section>
         <section class="category-container">
             <h2>카테고리별 랜덤 추천</h2>
             <div class="category-buttons">
+                <button class="category-button active" data-category="all">전체</button>
                 <button class="category-button" data-category="korean">한식</button>
                 <button class="category-button" data-category="japanese">일식</button>
                 <button class="category-button" data-category="chinese">중식</button>

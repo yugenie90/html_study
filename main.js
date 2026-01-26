@@ -1,12 +1,13 @@
-const foods = ["피자", "치킨", "떡볶이", "라면", "김치찌개", "초밥", "파스타", "햄버거", "국밥", "짜장면"];
-const colors = ["#FFC0CB", "#FFD700", "#FF69B4", "#ADD8E6", "#90EE90", "#FFA07A", "#20B2AA", "#87CEFA", "#778899", "#B0C4DE"];
-
 const categories = {
-    korean: ["김치찌개", "된장찌개", "비빔밥", "불고기", "제육볶음", "삼겹살"],
-    japanese: ["초밥", "라멘", "돈카츠", "우동", "소바", "오코노미야키"],
-    chinese: ["짜장면", "짬뽕", "탕수육", "마라탕", "양꼬치", "볶음밥"],
-    western: ["파스타", "피자", "스테이크", "햄버거", "리조또", "샐러드"]
+    korean: ["김치찌개", "된장찌개", "비빔밥", "불고기", "제육볶음", "삼겹살", "냉면", "갈비탕", "부대찌개", "닭갈비"],
+    japanese: ["초밥", "라멘", "돈카츠", "우동", "소바", "오코노미야키", "야키토리", "텐동", "가츠동", "스키야키"],
+    chinese: ["짜장면", "짬뽕", "탕수육", "마라탕", "양꼬치", "볶음밥", "깐풍기", "유린기", "고추잡채", "동파육"],
+    western: ["파스타", "피자", "스테이크", "햄버거", "리조또", "샐러드", "감바스", "필라프", "클램차우더", "비프 스트로가노프"]
 };
+categories.all = [...new Set([...categories.korean, ...categories.japanese, ...categories.chinese, ...categories.western])];
+
+let foods = [...categories.all];
+const colors = ["#FFC0CB", "#FFD700", "#FF69B4", "#ADD8E6", "#90EE90", "#FFA07A", "#20B2AA", "#87CEFA", "#778899", "#B0C4DE", "#FFB6C1", "#F0E68C", "#E6E6FA", "#FAFAD2", "#D3FFCE", "#FFE4E1", "#AFEEEE", "#DB7093", "#F5DEB3", "#FFFFFF"];
 
 const canvas = document.getElementById('roulette-canvas');
 const ctx = canvas.getContext('2d');
@@ -21,6 +22,7 @@ let spinTime = 0;
 let spinTimeTotal = 0;
 
 function drawRoulette() {
+    if (!canvas.getContext) return;
     const arc = Math.PI / (foods.length / 2);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = "#333";
@@ -29,7 +31,7 @@ function drawRoulette() {
 
     for (let i = 0; i < foods.length; i++) {
         const angle = currentAngle + i * arc;
-        ctx.fillStyle = colors[i];
+        ctx.fillStyle = colors[i % colors.length];
 
         ctx.beginPath();
         ctx.arc(200, 200, 200, angle, angle + arc, false);
@@ -48,6 +50,7 @@ function drawRoulette() {
 }
 
 function spin() {
+    resultDiv.innerHTML = '';
     spinAngleStart = Math.random() * 10 + 10;
     spinTime = 0;
     spinTimeTotal = Math.random() * 3 + 4 * 1000;
@@ -67,14 +70,14 @@ function rotateRoulette() {
 }
 
 function stopRotateRoulette() {
-    const degrees = currentAngle * 180 / Math.PI + 90;
-    const arcd = 360 / foods.length;
-    const index = Math.floor((360 - degrees % 360) / arcd);
-    ctx.save();
-    ctx.font = 'bold 40px "Dongle", sans-serif';
-    const text = foods[index];
+    const totalArcs = foods.length;
+    const arcSize = 2 * Math.PI / totalArcs;
+    const finalAngle = currentAngle + (Math.PI / 2); // Adjust for top pointer
+    let winningIndex = Math.floor((2 * Math.PI - (finalAngle % (2*Math.PI)))) / arcSize;
+    winningIndex = Math.floor(winningIndex) % totalArcs;
+
+    const text = foods[winningIndex];
     resultDiv.innerHTML = `오늘의 메뉴는... ${text}!`;
-    ctx.restore();
 }
 
 function easeOut(t, b, c, d) {
@@ -87,7 +90,16 @@ spinButton.addEventListener('click', spin);
 
 categoryButtons.forEach(button => {
     button.addEventListener('click', () => {
+        // Update active button
+        categoryButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+
+        // Update roulette foods
         const category = button.dataset.category;
+        foods = [...categories[category]];
+        drawRoulette();
+        
+        // Also show a random recommendation from the category
         const randomFood = categories[category][Math.floor(Math.random() * categories[category].length)];
         categoryResultDiv.innerHTML = `추천 메뉴: <span style="color: #e64980;">${randomFood}</span>`;
     });
