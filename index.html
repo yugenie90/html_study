@@ -3,30 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>보고서 작성 도우미</title>
+    <title>오늘 뭐 먹지? - 결정 장애 해결사</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>보고서 작성 도우미</h1>
+        <h1>오늘 뭐 먹지?</h1>
+        <p>결정 장애 해결사</p>
     </header>
     <main>
-        <section class="assistant-container">
-            <h2>보고서 내용을 입력하세요</h2>
-            <form id="report-form">
-                <textarea id="report-input" placeholder="보고서 주제, 키워드, 또는 간단한 요약을 입력하세요..."></textarea>
-                <button type="submit">보고서 생성</button>
-            </form>
-            <div class="result-container">
-                <h2>생성된 보고서</h2>
-                <div id="report-output">
-                    <p>생성된 보고서는 여기에 표시됩니다.</p>
-                </div>
+        <section class="roulette-container">
+            <canvas id="roulette-canvas" width="400" height="400"></canvas>
+            <button id="spin-button">룰렛 돌리기!</button>
+            <div id="result"></div>
+        </section>
+        <section class="category-container">
+            <h2>카테고리별 랜덤 추천</h2>
+            <div class="category-buttons">
+                <button class="category-button" data-category="korean">한식</button>
+                <button class="category-button" data-category="japanese">일식</button>
+                <button class="category-button" data-category="chinese">중식</button>
+                <button class="category-button" data-category="western">양식</button>
             </div>
+            <div id="category-result"></div>
         </section>
     </main>
     <footer>
-        <p>&copy; 2026 보고서 작성 도우미</p>
+        <p>&copy; 2026 오늘 뭐 먹지?</p>
     </footer>
     <script src="main.js"></script>
 </body>
