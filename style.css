@@ -53,9 +53,10 @@
   }
   
   .logo{
-    width: 56px;        /* 🔥 여기서 전체 크기 결정 */
+    width: 56px;        /* 필요하면 48~56px 조절 */
     height: auto;
     flex-shrink: 0;
+    background: transparent;
   }
   
   .logo img{
@@ -348,4 +349,6 @@
     .main-grid{ grid-template-columns: 1fr; }
     .log{ height: 360px; }
   }
+
+
   
