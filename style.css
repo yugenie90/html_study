@@ -76,6 +76,10 @@
     font-size: 13px;
     color: var(--muted);
   }
+
+  .subtitle .block{
+    display: block;
+  }
   
   .topbar-right{
     display:flex;
