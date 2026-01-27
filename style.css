@@ -49,31 +49,24 @@
   .topbar-left{
     display: flex;
     align-items: center;
-    gap: 12px;   /* 로고-타이틀 간격 */
+    gap: 14px;   /* 로고-텍스트 간격 */
   }
   
-  .mark{
-    width: 40px;     /* 🔥 중요: 여기서 크기 결정 */
-    height: 40px;
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    background: linear-gradient(135deg, #1B64FF, #4E9BFF);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-    flex-shrink: 0;  /* 줄어들지 않게 */
+  .logo{
+    width: 56px;        /* 🔥 여기서 전체 크기 결정 */
+    height: auto;
+    flex-shrink: 0;
   }
   
-  .mark img{
-    width: 70%;
-    height: 70%;
-    object-fit: contain;
+  .logo img{
+    width: 100%;
+    height: auto;
+    display: block;
   }
-  
   
   .title{
     margin: 0;
-    font-size: 26px;   /* 살짝 줄여도 좋음 */
+    font-size: 26px;
     line-height: 1.25;
   }
   
