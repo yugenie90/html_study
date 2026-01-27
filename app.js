@@ -1,5 +1,17 @@
 /* global ExcelJS */
 
+/**
+ * ✅ 통짜 완성본(app.js)
+ * - 업로드 엑셀 1개 (시트: 강의정보, 학생정보)
+ * - 강의정보: 열 위치 고정으로 읽음(헤더 무시)  ✅ L=최대인원, M=소속관, N=지역
+ * - 학생정보: 헤더 자동 탐지(1~12행 스캔) 후 읽음
+ * - 유형=선택 제외
+ * - 필수(반 기준 고정) 시간표 블로킹 후 탐구 배정(충돌 금지)
+ * - 조합(반+관+탐구1+탐구2) 그룹 단위로 (탐구1반, 탐구2반) 최대한 동일 유지
+ * - 정원 초과 시 가능한 만큼 먼저 배정 → 남는 인원은 다른 조합으로 분할 배정 + 경고(빨간 행)
+ * - 지역/소속관 제약 적용(학생 관 → 지역 자동 매핑 + 강의 지역/소속관 매칭)
+ */
+
 const $file = document.getElementById("file");
 const $run = document.getElementById("run");
 const $download = document.getElementById("download");
@@ -12,12 +24,15 @@ function log(msg) {
   $log.textContent += msg + "\n";
 }
 
-function norm(s) {
-  return (s ?? "").toString().trim();
+function norm(v) {
+  return (v ?? "").toString().trim();
+}
+
+function cellText(cell) {
+  return norm(cell?.text ?? cell?.value ?? "");
 }
 
 function periodNum(p) {
-  // "5교시" -> 5
   const m = norm(p).match(/(\d+)/);
   return m ? parseInt(m[1], 10) : 99;
 }
@@ -26,32 +41,123 @@ const dayOrder = new Map([
   ["월요일", 1], ["화요일", 2], ["수요일", 3], ["목요일", 4], ["금요일", 5], ["토요일", 6], ["일요일", 7],
 ]);
 
-function sheetToObjects(ws) {
-  const headerRow = ws.getRow(1);
+function regionFromBuilding(building) {
+  const b = norm(building);
+
+  // 대치
+  const daechi = new Set(["W관", "N관", "S관", "브릿지관", "M3관", "3H관", "신관"]);
+  // 목동
+  const mokdong = new Set(["목동관", "목동W관"]);
+  // 기숙
+  const dorm = new Set(["기숙관"]);
+
+  if (daechi.has(b)) return "대치";
+  if (mokdong.has(b)) return "목동";
+  if (dorm.has(b)) return "기숙";
+  return "";
+}
+
+async function readWorkbook(arrayBuffer) {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(arrayBuffer);
+  return wb;
+}
+
+/** =========================
+ * 학생정보: 헤더 자동 탐지
+ ========================= */
+function findHeaderRowNumber(ws, requiredCols, maxScanRows = 12) {
+  let bestRow = 1;
+  let bestScore = -1;
+
+  for (let r = 1; r <= Math.min(maxScanRows, ws.rowCount); r++) {
+    const row = ws.getRow(r);
+    const headers = [];
+    row.eachCell((cell, col) => { headers[col] = cellText(cell); });
+
+    const headerSet = new Set(headers.filter(Boolean));
+    const score = requiredCols.reduce((acc, c) => acc + (headerSet.has(c) ? 1 : 0), 0);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestRow = r;
+    }
+  }
+  return bestRow;
+}
+
+function sheetToObjectsAutoHeader(ws, requiredColsForDetect) {
+  const headerRowNumber = findHeaderRowNumber(ws, requiredColsForDetect, 12);
+  const headerRow = ws.getRow(headerRowNumber);
+
   const headers = [];
-  headerRow.eachCell((cell, col) => headers[col] = norm(cell.value));
+  headerRow.eachCell((cell, col) => { headers[col] = cellText(cell); });
 
   const rows = [];
-  ws.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
+  for (let r = headerRowNumber + 1; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    // 완전 빈 행 스킵
+    const anyVal = row.values?.some(v => v !== null && v !== undefined && norm(v) !== "");
+    if (!anyVal) continue;
+
     const obj = {};
     let empty = true;
 
     headers.forEach((h, col) => {
       if (!h) return;
-      const v = row.getCell(col).value;
-      const val = (v && typeof v === "object" && "text" in v) ? v.text : v;
+      const val = cellText(row.getCell(col));
       obj[h] = val;
-      if (norm(val) !== "") empty = false;
+      if (val !== "") empty = false;
     });
 
     if (!empty) rows.push(obj);
-  });
+  }
   return rows;
 }
 
+/** =========================
+ * 강의정보: 열 위치 고정
+ * (스크린샷 기준)
+ * A:순번 B:강의코드 C:강의실총등 D:요일&교시&강의실 E:과목 F:유형 G:선생님 H:반 I:강의실 J:요일 K:교시 L:최대인원 M:소속관 N:지역
+ ========================= */
+function lectureSheetToObjectsFixed(ws, headerRowNumber = 1) {
+  const rows = [];
+
+  for (let r = headerRowNumber + 1; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+
+    // 완전 빈 행 스킵
+    const anyVal = row.values?.some(v => v !== null && v !== undefined && norm(v) !== "");
+    if (!anyVal) continue;
+
+    const obj = {
+      // 참고로 필요한 것만 최소 구성
+      "요일&교시&강의실": cellText(row.getCell(4)),  // D
+      "과목": cellText(row.getCell(5)),              // E
+      "유형": cellText(row.getCell(6)),              // F
+      "선생님": cellText(row.getCell(7)),            // G (필수는 아님)
+      "반": cellText(row.getCell(8)),                // H
+      "강의실": cellText(row.getCell(9)),            // I (실제 장소)
+      "요일": cellText(row.getCell(10)),             // J
+      "교시": cellText(row.getCell(11)),             // K
+      "최대인원": cellText(row.getCell(12)),         // L ✅
+      "소속관": cellText(row.getCell(13)),           // M ✅
+      "지역": cellText(row.getCell(14)),             // N ✅
+    };
+
+    // 데이터행 유효성(최소한 유형/반/과목 중 하나는 있어야)
+    if (!obj["유형"] && !obj["반"] && !obj["과목"]) continue;
+
+    rows.push(obj);
+  }
+
+  return rows;
+}
+
+/** =========================
+ * 공통 유틸
+ ========================= */
 function slotsFromRows(rows) {
-  // Set("월요일|5교시")
   const set = new Set();
   for (const r of rows) {
     const key = `${norm(r["요일"])}|${norm(r["교시"])}`;
@@ -82,34 +188,11 @@ function buildDetail(rows) {
 function minCapacity(rows) {
   let cap = null;
   for (const r of rows) {
-    const v = r["최대인원"];
-    const n = Number(v);
+    const n = Number(norm(r["최대인원"]));
     if (!Number.isFinite(n)) continue;
     cap = (cap === null) ? n : Math.min(cap, n);
   }
   return cap; // null 가능
-}
-
-function regionFromBuilding(building) {
-  const b = norm(building);
-
-  // 대치
-  const daechi = new Set(["W관", "N관", "S관", "브릿지관", "M3관", "3H관", "신관"]);
-  // 목동
-  const mokdong = new Set(["목동관", "목동W관"]);
-  // 기숙
-  const dorm = new Set(["기숙관"]);
-
-  if (daechi.has(b)) return "대치";
-  if (mokdong.has(b)) return "목동";
-  if (dorm.has(b)) return "기숙";
-  return "";
-}
-
-async function readWorkbook(arrayBuffer) {
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(arrayBuffer);
-  return wb;
 }
 
 async function runAssignment(inputWb) {
@@ -119,26 +202,30 @@ async function runAssignment(inputWb) {
     throw new Error("시트 이름이 정확해야 합니다: 강의정보, 학생정보");
   }
 
-  const lecAll = sheetToObjects(lecWs);
-  const stuAll = sheetToObjects(stuWs);
+  // ✅ 강의정보: 열 고정 (헤더 무시)
+  const lecAll = lectureSheetToObjectsFixed(lecWs, 1);
+
+  // ✅ 학생정보: 헤더 자동 탐지
+  const requiredStuCols = ["일련번호", "관", "반", "탐구1", "탐구2"];
+  const stuAll = sheetToObjectsAutoHeader(stuWs, requiredStuCols);
 
   log(`강의정보 ${lecAll.length}행, 학생정보 ${stuAll.length}행 로드`);
 
-  // 강의정보 필터: 유형=선택 제외
-  const lec = lecAll.filter(r => norm(r["유형"]) !== "선택");
-
-  // 필수 컬럼 체크(간단 검증)
-  const requiredLecCols = ["과목", "유형", "반", "강의실", "요일", "교시", "최대인원", "소속관", "지역"];
-  const missingLec = requiredLecCols.filter(c => !Object.prototype.hasOwnProperty.call(lec[0] ?? {}, c));
-  if (missingLec.length > 0) {
-    throw new Error(`강의정보 컬럼 누락: ${missingLec.join(", ")}`);
-  }
-
-  const requiredStuCols = ["일련번호", "관", "반", "탐구1", "탐구2"];
+  // 학생정보 최소 컬럼 검사(첫 행 기준)
   const missingStu = requiredStuCols.filter(c => !Object.prototype.hasOwnProperty.call(stuAll[0] ?? {}, c));
   if (missingStu.length > 0) {
     throw new Error(`학생정보 컬럼 누락: ${missingStu.join(", ")}`);
   }
+
+  // 강의정보 필수 키 검사(열 고정이라 거의 안 깨짐)
+  const requiredLecKeys = ["과목", "유형", "반", "강의실", "요일", "교시", "최대인원", "소속관", "지역"];
+  const missingLec = requiredLecKeys.filter(c => !Object.prototype.hasOwnProperty.call(lecAll[0] ?? {}, c));
+  if (missingLec.length > 0) {
+    throw new Error(`강의정보 열 매핑 실패(열 위치 확인 필요): ${missingLec.join(", ")}`);
+  }
+
+  // 0) 유형=선택 제외
+  const lec = lecAll.filter(r => norm(r["유형"]) !== "선택");
 
   // 1) 필수 시간표(반 기준 고정)
   const mandatoryRows = lec.filter(r => norm(r["유형"]) === "필수");
@@ -148,6 +235,7 @@ async function runAssignment(inputWb) {
     if (!mandatoryByHome.has(home)) mandatoryByHome.set(home, []);
     mandatoryByHome.get(home).push(r);
   }
+
   const mandatorySlotsByHome = new Map();
   const mandatoryDetailByHome = new Map();
   for (const [home, rows] of mandatoryByHome.entries()) {
@@ -158,20 +246,17 @@ async function runAssignment(inputWb) {
       .join(" / "));
   }
 
-  // 2) 탐구 반 정보 구성: 소속관/지역은 컬럼 기반
+  // 2) 탐구 반 정보 구성 (소속관/지역 기반)
   const exploreRows = lec.filter(r => norm(r["유형"]) === "탐구");
-
   const exploreBySection = new Map(); // section -> rows[]
   for (const r of exploreRows) {
     const sec = norm(r["반"]);
     if (!exploreBySection.has(sec)) exploreBySection.set(sec, []);
-
-    const rr = {
+    exploreBySection.get(sec).push({
       ...r,
       소속관: norm(r["소속관"]),
       지역: norm(r["지역"]),
-    };
-    exploreBySection.get(sec).push(rr);
+    });
   }
 
   const sections = new Map(); // sec -> info
@@ -184,7 +269,7 @@ async function runAssignment(inputWb) {
       buildings, // 소속관 리스트
       regions,   // 지역 리스트
       slots: slotsFromRows(rows),
-      detail: buildDetail(rows), // 실제 강의실 표기 유지
+      detail: buildDetail(rows), // 실제 강의실 표시
       capacity: minCapacity(rows),
     });
   }
@@ -209,10 +294,10 @@ async function runAssignment(inputWb) {
     for (const [sec, info] of sections.entries()) {
       if (!norm(sec).startsWith(s)) continue;
 
-      // 지역 제약
+      // ✅ 지역 제약
       if (region && info.regions.length > 0 && !info.regions.includes(region)) continue;
 
-      // 소속관 제약(학생관 == 강의 소속관)
+      // ✅ 소속관 제약(학생관 == 강의 소속관)
       if (building && info.buildings.length > 0 && !info.buildings.includes(building)) continue;
 
       if (!canFit(sec, groupSize)) continue;
@@ -227,15 +312,14 @@ async function runAssignment(inputWb) {
   }
 
   function scorePair(sec1, sec2, groupSize) {
-    // 균형: 배정 후 최대 카운트 최소화 → 합 최소화
     const c1 = (counts.get(sec1) ?? 0) + groupSize;
     const c2 = (counts.get(sec2) ?? 0) + groupSize;
     const maxC = Math.max(c1, c2);
     const sumC = c1 + c2;
-    return [maxC, sumC, sec1, sec2]; // lexicographic
+    return [maxC, sumC, sec1, sec2];
   }
 
-  // 그룹(조합) 단위 묶기: 학생반+관+탐구1+탐구2
+  // 3) 조합 그룹: 학생반+관+탐구1+탐구2
   const groups = new Map();
   for (const s of stuAll) {
     const home = norm(s["반"]);
@@ -286,9 +370,10 @@ async function runAssignment(inputWb) {
       if (!sections.has(sec1) || !sections.has(sec2)) return null;
       if (!canFit(sec1, size) || !canFit(sec2, size)) return null;
 
-      // 지역/소속관도 재확인
       const i1 = sections.get(sec1);
       const i2 = sections.get(sec2);
+
+      // 지역/소속관 확인
       if (studentRegion && i1.regions.length && !i1.regions.includes(studentRegion)) return null;
       if (studentRegion && i2.regions.length && !i2.regions.includes(studentRegion)) return null;
       if (building && i1.buildings.length && !i1.buildings.includes(building)) return null;
@@ -303,6 +388,7 @@ async function runAssignment(inputWb) {
       return { sec1, sec2 };
     };
 
+    // 1) preferred로 그룹 전체 시도
     const okPreferred = tryPreferred(preferred, groupSize);
     if (okPreferred) {
       counts.set(okPreferred.sec1, (counts.get(okPreferred.sec1) ?? 0) + groupSize);
@@ -310,10 +396,10 @@ async function runAssignment(inputWb) {
       return [{ size: groupSize, sec1: okPreferred.sec1, sec2: okPreferred.sec2, warn: warnAll, notes: notesBase }];
     }
 
-    // 전체 그룹 수용 가능한 pair 탐색
+    // 2) 그룹 전체 수용 가능한 pair 탐색
     const cand1 = getCandidates(subj1, building, studentRegion, blockedBase, groupSize);
-
     let best = null;
+
     for (const sec1 of cand1) {
       const blocked = new Set(blockedBase);
       for (const x of sections.get(sec1).slots) blocked.add(x);
@@ -332,7 +418,7 @@ async function runAssignment(inputWb) {
       return [{ size: groupSize, sec1: best.sec1, sec2: best.sec2, warn: warnAll, notes: notesBase }];
     }
 
-    // 전체 수용 불가 → 분할(최소 분할): 가능한 최대 chunk부터 배정
+    // 3) 그룹 전체 불가 → 분할(최소 분할): 가능한 최대 chunk부터
     let remaining = groupSize;
     const chunks = [];
     let split = false;
@@ -349,6 +435,7 @@ async function runAssignment(inputWb) {
 
         const c1 = getCandidates(subj1, building, studentRegion, blockedBase, chunkSize);
         let bestLocal = null;
+
         for (const sec1 of c1) {
           const blocked = new Set(blockedBase);
           for (const x of sections.get(sec1).slots) blocked.add(x);
@@ -407,6 +494,7 @@ async function runAssignment(inputWb) {
     return chunks;
   }
 
+  // 4) 배정 실행
   for (const g of groupEntries) {
     const chunks = assignGroup(g);
 
@@ -429,68 +517,69 @@ async function runAssignment(inputWb) {
         if (!ch.sec2) notes.push(`탐구2(${subj2}) 미배정`);
 
         results.push({
-          일련번호: id,
-          관: building,
-          학생반: home,
-          탐구1: subj1,
-          탐구1_배정반: ch.sec1,
-          탐구1_시간표: ch.sec1 ? sections.get(ch.sec1).detail : "",
-          탐구2: subj2,
-          탐구2_배정반: ch.sec2,
-          탐구2_시간표: ch.sec2 ? sections.get(ch.sec2).detail : "",
-          경고: warn ? "⚠️" : "",
-          비고: notes.filter(Boolean).join(" | "),
+          "일련번호": id,
+          "관": building,
+          "학생반": home,
+          "탐구1": subj1,
+          "탐구1_배정반": ch.sec1,
+          "탐구1_시간표": ch.sec1 ? sections.get(ch.sec1).detail : "",
+          "탐구2": subj2,
+          "탐구2_배정반": ch.sec2,
+          "탐구2_시간표": ch.sec2 ? sections.get(ch.sec2).detail : "",
+          "경고": warn ? "⚠️" : "",
+          "비고": notes.filter(Boolean).join(" | "),
           "필수시간표(참고)": mandatoryDetailByHome.get(home) ?? "",
           // 디버그용(원치 않으면 제거 가능)
-          "조합그룹키(참고)": g.key
+          "조합그룹키(참고)": g.key,
         });
       }
     }
   }
 
-  // 반별명단
+  // 5) 반별명단
   const roster = [];
   for (const [sec, info] of sections.entries()) {
-    const members = results.filter(r => r.탐구1_배정반 === sec || r.탐구2_배정반 === sec);
+    const members = results.filter(r => r["탐구1_배정반"] === sec || r["탐구2_배정반"] === sec);
     if (members.length === 0) continue;
+
     for (const m of members) {
       roster.push({
-        탐구반: sec,
-        지역: info.regions.join("/"),
-        소속관: info.buildings.join("/"),
-        일련번호: m.일련번호,
-        학생반: m.학생반,
-        탐구1: m.탐구1,
-        탐구2: m.탐구2,
-        정원: info.capacity ?? "",
-        탐구반_시간표: info.detail,
+        "탐구반": sec,
+        "지역": info.regions.join("/"),
+        "소속관": info.buildings.join("/"),
+        "일련번호": m["일련번호"],
+        "학생반": m["학생반"],
+        "탐구1": m["탐구1"],
+        "탐구2": m["탐구2"],
+        "정원": info.capacity ?? "",
+        "탐구반_시간표": info.detail,
       });
     }
   }
 
-  // 요약
+  // 6) 요약
   const summary = [];
   for (const [sec, info] of sections.entries()) {
     const c = counts.get(sec) ?? 0;
     if (c <= 0) continue;
     summary.push({
-      탐구반: sec,
-      지역: info.regions.join("/"),
-      소속관: info.buildings.join("/"),
-      배정인원: c,
-      정원: info.capacity ?? "",
-      시간표: info.detail,
+      "탐구반": sec,
+      "지역": info.regions.join("/"),
+      "소속관": info.buildings.join("/"),
+      "배정인원": c,
+      "정원": info.capacity ?? "",
+      "시간표": info.detail,
     });
   }
-  summary.sort((a, b) => b.배정인원 - a.배정인원 || a.탐구반.localeCompare(b.탐구반));
+  summary.sort((a, b) => b["배정인원"] - a["배정인원"] || norm(a["탐구반"]).localeCompare(norm(b["탐구반"])));
 
-  // Output workbook
+  // 7) Output workbook 생성
   const outWb = new ExcelJS.Workbook();
   outWb.created = new Date();
 
   function addSheet(name, rows, warnRed = false) {
     const ws = outWb.addWorksheet(name);
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
       ws.addRow(["데이터 없음"]);
       return ws;
     }
@@ -498,7 +587,7 @@ async function runAssignment(inputWb) {
     const cols = Object.keys(rows[0]);
     ws.addRow(cols);
 
-    // header
+    // header style
     const header = ws.getRow(1);
     header.font = { bold: true, color: { argb: "FFFFFFFF" } };
     header.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F4E79" } };
@@ -535,6 +624,8 @@ async function runAssignment(inputWb) {
   addSheet("반별명단", roster, false);
   addSheet("요약", summary, false);
 
+  // (선택) 디버그 컬럼을 빼고 싶으면 여기서 results에서 해당 키 삭제하거나, addSheet 전에 cols 필터링 방식으로 처리 가능
+
   const buf = await outWb.xlsx.writeBuffer();
   return buf;
 }
@@ -553,6 +644,9 @@ function downloadBuffer(buf, filename) {
   URL.revokeObjectURL(url);
 }
 
+/** =========================
+ * UI 이벤트
+ ========================= */
 $file.addEventListener("change", async (e) => {
   const f = e.target.files?.[0];
   outputArrayBuffer = null;
