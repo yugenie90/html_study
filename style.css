@@ -39,7 +39,7 @@
     max-width: 1320px;
     width: 100%;
     margin: 0 auto;
-    padding: 22px 22px 14px;
+    padding: 16px 22px 12px;
     display:flex;
     justify-content: space-between;
     gap: 16px;
@@ -47,20 +47,21 @@
   }
   
   .topbar-left{
-    display:flex;
-    gap: 12px;
-    align-items:center;
+    display: flex;
+    align-items: center;
+    gap: 12px;   /* 로고-타이틀 간격 */
   }
   
   .mark{
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
+    width: 40px;     /* 🔥 중요: 여기서 크기 결정 */
+    height: 40px;
+    border-radius: 12px;
     display: grid;
     place-items: center;
     background: linear-gradient(135deg, #1B64FF, #4E9BFF);
     box-shadow: var(--shadow);
     overflow: hidden;
+    flex-shrink: 0;  /* 줄어들지 않게 */
   }
   
   .mark img{
@@ -69,15 +70,17 @@
     object-fit: contain;
   }
   
+  
   .title{
-    margin:0;
-    font-size: 28px;
-    letter-spacing: -0.02em;
+    margin: 0;
+    font-size: 26px;   /* 살짝 줄여도 좋음 */
+    line-height: 1.25;
   }
+  
   .subtitle{
-    margin: 6px 0 0;
+    margin-top: 4px;
+    font-size: 13px;
     color: var(--muted);
-    font-size: 14px;
   }
   
   .topbar-right{
