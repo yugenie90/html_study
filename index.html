@@ -153,7 +153,78 @@
               <li><b>학생별배정</b>: 학생 기준 결과(사유 포함)</li>
               <li><b>불가능탐구_요약</b>: 반 기준 불가능 탐구 목록</li>
             </ul>
+          
+        
           </div>
+
+          <div class="section logic-accordion">
+            <button class="logic-toggle" type="button">
+              <span>📊 배정 로직 설명</span>
+              <i class="arrow">▾</i>
+            </button>
+          
+            <div class="logic-panel">
+              <p class="muted small">
+                이 도구는 아래 순서와 규칙에 따라 탐구반을 자동 배정합니다.
+              </p>
+          
+              <div class="logic-step">
+                <span class="logic-num">1</span>
+                <div>
+                  <b>엑셀 업로드 & 검증</b>
+                  <p class="small muted">강의정보 / 학생정보 시트 및 필수 컬럼 확인</p>
+                </div>
+              </div>
+          
+              <div class="logic-step highlight">
+                <span class="logic-num">2</span>
+                <div>
+                  <b>반별 필수수업 고정</b>
+                  <p class="small muted">
+                    국어·수학·영어·수리논술은 <b>자기 반 수업만</b> 고정됩니다.
+                  </p>
+                </div>
+              </div>
+          
+              <div class="logic-step">
+                <span class="logic-num">3</span>
+                <div>
+                  <b>불가능 탐구 계산</b>
+                  <p class="small muted">필수수업과 시간 충돌 시 자동 제외</p>
+                </div>
+              </div>
+          
+              <div class="logic-step">
+                <span class="logic-num">4</span>
+                <div>
+                  <b>같은 반 · 같은 탐구 조합 우선</b>
+                  <p class="small muted">가능하면 동일 조합으로 배정</p>
+                </div>
+              </div>
+          
+              <div class="logic-step">
+                <span class="logic-num">5</span>
+                <div>
+                  <b>정원 기준 배정</b>
+                  <p class="small muted">정원 90% 우선 → 분산 → 100% 허용</p>
+                </div>
+              </div>
+          
+              <div class="logic-step error">
+                <span class="logic-num">6</span>
+                <div>
+                  <b>미배정 처리</b>
+                  <p class="small muted">
+                    정원 초과 / 필수 충돌 / 수업 미개설 시 사유 기록
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+
+
+
         </div>
       </aside>
     </main>

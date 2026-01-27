@@ -428,3 +428,10 @@ $download.addEventListener("click", () => {
   a.download = "탐구반_자동배정_결과.xlsx";
   a.click();
 });
+
+
+document.querySelectorAll(".logic-toggle").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    btn.closest(".logic-accordion").classList.toggle("open");
+  });
+});
