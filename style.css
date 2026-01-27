@@ -53,8 +53,16 @@
   }
   
   .mark{
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #1B64FF, #4E9BFF);
+    box-shadow: var(--shadow);
     overflow: hidden;
   }
+  
   .mark img{
     width: 70%;
     height: 70%;
