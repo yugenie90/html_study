@@ -197,30 +197,103 @@ $run.addEventListener("click", async () => {
       for (const capType of ["SOFT", "HARD"]) {
         const cand1 = candidatesByPrefix(g.home, g.prefix1, capType, g.size, mand);
         let optionsCount = 0;
+        const validPairs = []; // 유일 페어를 찾기 위해 유효한 페어를 저장
         for (const sec1 of cand1) {
           const blocked2 = new Set([...mand, ...sections.get(sec1).slots]);
-          optionsCount += candidatesByPrefix(g.home, g.prefix2, capType, g.size, blocked2).length;
+          const cand2 = candidatesByPrefix(g.home, g.prefix2, capType, g.size, blocked2);
+          for (const sec2 of cand2) {
+            validPairs.push({ sec1, sec2 });
+          }
+          optionsCount += cand2.length;
         }
-        if (capType === "SOFT") g.softOptions = optionsCount;
-        else g.hardOptions = optionsCount;
+        if (capType === "SOFT") {
+          g.softOptions = optionsCount;
+          g.softPairs = validPairs; // soft cap 기준 유효 페어 저장
+        } else {
+          g.hardOptions = optionsCount;
+          g.hardPairs = validPairs; // hard cap 기준 유효 페어 저장
+        }
       }
     });
 
+    log(`그룹 총 ${groups.length}개 우선순위 계산 완료.`);
+
+    let assigned = []; // <--- 선언 위치 이동
+    // --- 선배정 (Forced First) 단계 ---
+    log("선배정 (Forced First) 단계 시작...");
+    const forcedFirstAssigned = [];
+    const regularGroups = []; // 선배정 대상이 아닌 그룹들
+
+    // 선배정 대상 식별 및 배정 (softOptions == 1)
+    let softForcedCount = 0;
+    let hardForcedCount = 0;
+
+    for (const group of groups) {
+      if (group.reason) { // 그룹 전체 미배정 (미개설 등)
+        group.students.forEach(s => assigned.push({ ...s, 탐구1배정: "", 탐구2배정: "", 미배정사유: group.reason, 비고: "" }));
+        continue;
+      }
+      
+      let assignedByForcedFirst = false;
+      let capTypeUsed = "";
+      let chosenPair = null;
+
+      if (group.softOptions === 1) {
+        chosenPair = group.softPairs[0];
+        capTypeUsed = "SOFT";
+        softForcedCount++;
+        assignedByForcedFirst = true;
+      } else if (group.softOptions === 0 && group.hardOptions === 1) {
+        chosenPair = group.hardPairs[0];
+        capTypeUsed = "HARD";
+        hardForcedCount++;
+        assignedByForcedFirst = true;
+      }
+
+      if (assignedByForcedFirst && chosenPair) {
+        const { sec1, sec2 } = chosenPair;
+        const size = group.size;
+        
+        // 배정 반영
+        counts.set(sec1, (counts.get(sec1) ?? 0) + size);
+        counts.set(sec2, (counts.get(sec2) ?? 0) + size);
+        
+        group.students.forEach(s => assigned.push({
+          ...s, 탐구1배정: toAbbrevSectionName(sec1), 탐구2배정: toAbbrevSectionName(sec2),
+          미배정사유: "", 비고: capTypeUsed === "HARD" ? "선배정(정원 100% 허용)" : "선배정"
+        }));
+        forcedFirstAssigned.push(group);
+      } else {
+        regularGroups.push(group);
+      }
+    }
+    log(`선배정 대상 개수: soft==1 (${softForcedCount}개), soft==0 && hard==1 (${hardForcedCount}개)`);
+    if (forcedFirstAssigned.length > 0) {
+      log("선배정된 그룹 상위 5개:");
+      forcedFirstAssigned.slice(0, 5).forEach(g => {
+        const assignedStudent = assigned.find(s => s.id === g.students[0].id);
+        if (assignedStudent) {
+            log(`- 반: ${g.home}, 탐구1: ${g.want1}, 탐구2: ${g.want2}, 인원: ${g.size}, 배정페어: ${assignedStudent.탐구1배정}/${assignedStudent.탐구2배정}`);
+        }
+      });
+    }
+
+    // 선배정된 그룹을 제외한 나머지 그룹으로 groups 배열 재구성
+    groups.splice(0, groups.length, ...regularGroups); 
+
     groups.sort((a, b) =>
-      a.softOptions - b.softOptions ||
-      a.hardOptions - b.hardOptions ||
+      // 0인 경우는 뒤로 (양수인 경우만 오름차순)
+      (a.softOptions === 0 ? Infinity : a.softOptions) - (b.softOptions === 0 ? Infinity : b.softOptions) ||
+      (a.hardOptions === 0 ? Infinity : a.hardOptions) - (b.hardOptions === 0 ? Infinity : b.hardOptions) ||
       b.size - a.size ||
       a.home.localeCompare(b.home)
     );
-
-    log(`그룹 총 ${groups.length}개 우선순위 계산 완료.`);
     // (디버그 로그 생략)
 
     // =========================
     // 6) ★★★ 배정 로직 ★★★
     // =========================
     log("그룹 배정 시작 (정렬된 순서 기반)...");
-    const assigned = [];
     const failureStats = new Map(); // For logging
 
     function tryAssignGroupAsPair(group, capType) {
@@ -250,6 +323,14 @@ $run.addEventListener("click", async () => {
         if (!isPossible) return "필수 시간 충돌";
         if (blocked && allOpenedSectionsByPrefix(prefix).some(sec => hasConflict(sections.get(sec).slots, blocked))) return "다른 탐구와 시간 충돌";
         return "정원 부족";
+    }
+
+    function recordFailure(subjectPrefix, reason) {
+        if (!failureReasons.has(subjectPrefix)) {
+            failureReasons.set(subjectPrefix, new Map());
+        }
+        const reasonMap = failureReasons.get(subjectPrefix);
+        reasonMap.set(reason, (reasonMap.get(reason) ?? 0) + 1);
     }
 
     function tryPartialAssignment(student) {
@@ -297,10 +378,12 @@ $run.addEventListener("click", async () => {
         if(!s1_res && subj1) {
             const reason = getSingleAssignReason(home, prefix1, s2_res ? sections.get(s2_res.sec).slots : null);
             res.비고.push(`부분배정: 탐구1 미배정(${reason})`);
+            recordFailure(prefix1, reason);
         }
         if(!s2_res && subj2) {
             const reason = getSingleAssignReason(home, prefix2, s1_res ? sections.get(s1_res.sec).slots : null);
             res.비고.push(`부분배정: 탐구2 미배정(${reason})`);
+            recordFailure(prefix2, reason);
         }
         
         return res;
@@ -309,7 +392,11 @@ $run.addEventListener("click", async () => {
 
     for (const group of groups) {
       if (group.reason) { // 그룹 전체 미배정 (미개설 등)
-        group.students.forEach(s => assigned.push({ ...s, 탐구1배정: "", 탐구2배정: "", 미배정사유: group.reason, 비고: "" }));
+        group.students.forEach(s => {
+          assigned.push({ ...s, 탐구1배정: "", 탐구2배정: "", 미배정사유: group.reason, 비고: "" });
+          if(group.prefix1) recordFailure(group.prefix1, "수업 미개설");
+          if(group.prefix2) recordFailure(group.prefix2, "수업 미개설");
+        });
         continue;
       }
       if (tryAssignGroupAsPair(group, "SOFT")) continue;
@@ -321,7 +408,11 @@ $run.addEventListener("click", async () => {
           const finalNote = partialRes.비고.join('; ');
 
           if (!partialRes.탐구1배정 && !partialRes.탐구2배정) {
+              const reason1 = getSingleAssignReason(s.home, subjectPrefixFromStudent(s.subj1), null);
+              const reason2 = getSingleAssignReason(s.home, subjectPrefixFromStudent(s.subj2), null);
               assigned.push({ ...s, 탐구1배정: "", 탐구2배정: "", 미배정사유: "페어/부분 배정 불가", 비고: finalNote });
+              recordFailure(subjectPrefixFromStudent(s.subj1), `페어실패(${reason1}/${reason2})`);
+              recordFailure(subjectPrefixFromStudent(s.subj2), `페어실패(${reason1}/${reason2})`);
           } else {
               assigned.push({ ...s, ...partialRes, 비고: finalNote, 미배정사유: "" });
           }
@@ -344,15 +435,40 @@ $run.addEventListener("click", async () => {
     log(`- 탐구2만 배정: ${stats.s2_only}명`);
     log(`- 둘 다 미배정: ${stats.none}명`);
 
+    const remainingSections = [];
     log("\n--- 잔여 정원 분반 ---");
     [...sections.keys()].sort().forEach(sec => {
         const info = sections.get(sec);
         const currentCount = counts.get(sec) ?? 0;
         const hardCap = info.cap100;
         if (currentCount < hardCap) {
-            log(`- ${sec}: ${hardCap - currentCount}석 남음 (현재 ${currentCount}/${hardCap})`);
+            const remainingSeats = hardCap - currentCount;
+            log(`- ${sec}: ${remainingSeats}석 남음 (현재 ${currentCount}/${hardCap})`);
+            remainingSections.push(sec);
         }
     });
+
+    log("\n--- '정원 남는데 미배정' 분석 ---");
+    const prefixesWithRemainingSeats = new Set(remainingSections.map(sec => {
+        for (const [full, abbr] of PREFIX_TO_ABBR) {
+            if (sec.startsWith(full)) return full;
+        }
+        return sec;
+    }));
+
+    for(const prefix of [...prefixesWithRemainingSeats].sort()) {
+        if (failureReasons.has(prefix)) {
+            const reasons = failureReasons.get(prefix);
+            const top3 = [...reasons.entries()].sort((a,b) => b[1] - a[1]).slice(0, 3);
+            if (top3.length > 0) {
+                log(`\n# 과목: ${prefix} (잔여 정원 있음)`);
+                log("  배정 실패 사유 TOP 3:");
+                top3.forEach(([reason, count]) => {
+                    log(`  - ${reason}: ${count}회`);
+                });
+            }
+        }
+    }
 
     // =========================
     // 8) 결과 엑셀 생성
