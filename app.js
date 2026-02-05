@@ -127,6 +127,7 @@ $run.addEventListener("click", async () => {
             slots: new Set(),
             cap100: safeCap100,
             cap90: Math.ceil(safeCap100 * 0.9),
+            name: subject,
           });
         }
         sections.get(subject).slots.add(slot);
@@ -181,11 +182,12 @@ $run.addEventListener("click", async () => {
     const counts = new Map();
     for (const sec of sections.keys()) counts.set(sec, 0);
 
-    function remaining(sec, phase) {
+    function remaining(sec, phase, capType) {
       const info = sections.get(sec);
-      const cap = (phase === "HARD") ? info.cap100 : info.cap90;
+      const cap = (capType === "HARD") ? info.cap100 : info.cap90;
       return cap - (counts.get(sec) ?? 0);
     }
+    
     function canUse(home, sec) {
       return possibleByHome.get(home)?.has(sec);
     }
@@ -193,6 +195,7 @@ $run.addEventListener("click", async () => {
     // "해당 과목(prefix)"로 시작하는 모든 섹션(개설여부 확인용, home/충돌 무시)
     function allOpenedSectionsByPrefix(prefix) {
       const out = [];
+      if (!prefix) return out;
       for (const sec of sections.keys()) {
         if (sec.startsWith(prefix)) out.push(sec);
       }
@@ -200,14 +203,14 @@ $run.addEventListener("click", async () => {
     }
 
     // home에서 사용 가능 + prefix 일치 + 정원여유 + (sec1과 시간 충돌 금지 옵션) 후보
-    function candidatesByPrefix(home, prefix, phase, needCount, extraBlockedSlots /* Set or null */) {
+    function candidatesByPrefix(home, prefix, capType, needCount, extraBlockedSlots /* Set or null */) {
       const out = [];
       const blocked = extraBlockedSlots ?? new Set();
 
       for (const [sec, info] of sections.entries()) {
         if (!sec.startsWith(prefix)) continue;
         if (!canUse(home, sec)) continue;
-        if (remaining(sec, phase) < needCount) continue;
+        if (remaining(sec, capType, capType) < needCount) continue;
         if (hasConflict(info.slots, blocked)) continue;
         out.push(sec);
       }
@@ -218,15 +221,123 @@ $run.addEventListener("click", async () => {
     }
 
     // =========================
-    // 5) 그룹핑 (반 + 탐구1 + 탐구2): "가능하면" 같은 조합 유지
+    // 5) 그룹핑 (반 + 탐구1 + 탐구2)
     // =========================
-    const groups = new Map();
+    const groupsMap = new Map();
     for (const s of students) {
       const key = `${s.home}|${s.subj1}|${s.subj2}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(s);
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key).push(s);
     }
 
+    // =========================
+    // 5-1) ★★★ 그룹별 옵션 계산 및 우선순위 정렬 ★★★
+    // =========================
+    log("그룹별 배정 가능 조합 계산 시작...");
+
+    const groups = [];
+    for (const [key, groupStudents] of groupsMap.entries()) {
+        const [home, want1, want2] = key.split("|");
+        const prefix1 = subjectPrefixFromStudent(want1);
+        const prefix2 = subjectPrefixFromStudent(want2);
+        const size = groupStudents.length;
+
+        groups.push({
+            key,
+            students: groupStudents,
+            home,
+            want1,
+            want2,
+            prefix1,
+            prefix2,
+            size,
+            softOptions: 0,
+            hardOptions: 0,
+            reason: ""
+        });
+    }
+
+    for (const group of groups) {
+      ensureHome(group.home);
+      const mand = mandatorySlotsByHome.get(group.home);
+
+      const opened1 = allOpenedSectionsByPrefix(group.prefix1);
+      const opened2 = allOpenedSectionsByPrefix(group.prefix2);
+
+      if (opened1.length === 0 || opened2.length === 0) {
+        group.reason = opened1.length === 0 ? "탐구1 미개설" : "탐구2 미개설";
+        continue;
+      }
+      
+      // Calculate options for SOFT and HARD caps
+      for (const capType of ["SOFT", "HARD"]) {
+        const cand1 = candidatesByPrefix(group.home, group.prefix1, capType, group.size, mand);
+        if (cand1.length === 0) {
+          // If no subj1 candidates, no need to check subj2
+          continue;
+        }
+
+        let optionsCount = 0;
+        for (const sec1 of cand1) {
+          const blocked2 = new Set(mand);
+          for (const sl of sections.get(sec1).slots) blocked2.add(sl);
+          
+          const cand2 = candidatesByPrefix(group.home, group.prefix2, capType, group.size, blocked2);
+          optionsCount += cand2.length;
+        }
+
+        if (capType === "SOFT") {
+          group.softOptions = optionsCount;
+        } else {
+          group.hardOptions = optionsCount;
+        }
+      }
+    }
+
+    // Sort groups
+    groups.sort((a, b) => {
+      // 1. Soft options (ascending)
+      if (a.softOptions !== b.softOptions) return a.softOptions - b.softOptions;
+      // 2. Hard options (ascending)
+      if (a.hardOptions !== b.hardOptions) return a.hardOptions - b.hardOptions;
+      // 3. Group size (descending)
+      if (a.size !== b.size) return b.size - a.size;
+      // 4. Class name (ascending)
+      return a.home.localeCompare(b.home);
+    });
+
+    log(`그룹 총 ${groups.length}개 우선순위 계산 완료.`);
+    log("--- 상위 10개 우선 배정 그룹 ---");
+    groups.slice(0, 10).forEach(g => {
+        log(`- ${g.home} (${g.want1}/${g.want2}), ${g.size}명 | Soft: ${g.softOptions}, Hard: ${g.hardOptions}`);
+    });
+    
+    const zeroOptionGroups = groups.filter(g => g.softOptions === 0 && g.hardOptions === 0);
+    if (zeroOptionGroups.length > 0) {
+        log(`--- 옵션 0개 그룹 (${zeroOptionGroups.length}개) ---
+`);
+        zeroOptionGroups.slice(0, 5).forEach(g => {
+            let reason = g.reason;
+            if (!reason) {
+                // More detailed reason finding
+                const mand = mandatorySlotsByHome.get(g.home);
+                const cand1_soft = candidatesByPrefix(g.home, g.prefix1, "SOFT", g.size, mand);
+                const cand1_hard = candidatesByPrefix(g.home, g.prefix1, "HARD", g.size, mand);
+
+                if (allOpenedSectionsByPrefix(g.prefix1).length === 0 || allOpenedSectionsByPrefix(g.prefix2).length === 0) {
+                    reason = "수업 미개설";
+                } else if (!canUse(g.home, allOpenedSectionsByPrefix(g.prefix1)[0]) || !canUse(g.home, allOpenedSectionsByPrefix(g.prefix2)[0])) {
+                    reason = "필수 시간 충돌";
+                } else if (cand1_soft.length === 0 && cand1_hard.length === 0) {
+                    reason = "정원 부족(그룹)";
+                } else {
+                    reason = "탐구1-2 충돌 또는 정원 부족";
+                }
+            }
+            log(`- ${g.home} (${g.want1}/${g.want2}), ${g.size}명 | 사유: ${reason}`);
+        });
+    }
+    
     const assigned = [];
 
     // 학생 1명 배정 (90% → 100%) / 반드시 같은 과목 prefix 안에서만
@@ -249,14 +360,13 @@ $run.addEventListener("click", async () => {
       // 필수 슬롯 + 탐구1 슬롯과 탐구2 충돌 금지
       const mand = mandatorySlotsByHome.get(home) ?? new Set();
 
-      // SOFT 먼저
-      for (const phase of ["SOFT", "HARD"]) {
-        const cand1 = candidatesByPrefix(home, prefix1, phase, 1, mand);
+      for (const capType of ["SOFT", "HARD"]) {
+        const cand1 = candidatesByPrefix(home, prefix1, capType, 1, mand);
         for (const sec1 of cand1) {
           const blocked2 = new Set(mand);
           for (const sl of sections.get(sec1).slots) blocked2.add(sl);
 
-          const cand2 = candidatesByPrefix(home, prefix2, phase, 1, blocked2);
+          const cand2 = candidatesByPrefix(home, prefix2, capType, 1, blocked2);
           if (cand2.length === 0) continue;
 
           const sec2 = cand2[0];
@@ -265,7 +375,7 @@ $run.addEventListener("click", async () => {
           counts.set(sec1, (counts.get(sec1) ?? 0) + 1);
           counts.set(sec2, (counts.get(sec2) ?? 0) + 1);
 
-          return { ok: true, sec1, sec2, phase };
+          return { ok: true, sec1, sec2, capType };
         }
       }
 
@@ -276,12 +386,9 @@ $run.addEventListener("click", async () => {
     // =========================
     // 6) 그룹 단위로 "한 번에" 넣어보고, 안 되면 학생 단위로 분할
     // =========================
-    for (const [key, groupStudents] of groups.entries()) {
-      const [home, want1, want2] = key.split("|");
-      ensureHome(home);
-
-      const prefix1 = subjectPrefixFromStudent(want1);
-      const prefix2 = subjectPrefixFromStudent(want2);
+    log("그룹 배정 시작 (정렬된 순서 기반)...");
+    for (const group of groups) {
+      const { students: groupStudents, home, prefix1, prefix2, size } = group;
 
       // 개설 자체가 없으면: 그룹 전체 미배정(수업 미개설)
       const opened1 = allOpenedSectionsByPrefix(prefix1);
@@ -312,20 +419,18 @@ $run.addEventListener("click", async () => {
 
       // 1) 그룹을 "같은 조합"으로 한 번에 배정 시도 (SOFT 먼저, 실패하면 HARD)
       let groupAssigned = false;
-      let groupNote = "";
-
+      
       const mand = mandatorySlotsByHome.get(home) ?? new Set();
-      const size = groupStudents.length;
 
-      function tryAssignGroup(phase) {
+      function tryAssignGroup(capType) {
         // 탐구1 후보(그룹 size만큼 여유)
-        const cand1 = candidatesByPrefix(home, prefix1, phase, size, mand);
+        const cand1 = candidatesByPrefix(home, prefix1, capType, size, mand);
 
         for (const sec1 of cand1) {
           const blocked2 = new Set(mand);
           for (const sl of sections.get(sec1).slots) blocked2.add(sl);
 
-          const cand2 = candidatesByPrefix(home, prefix2, phase, size, blocked2);
+          const cand2 = candidatesByPrefix(home, prefix2, capType, size, blocked2);
           if (cand2.length === 0) continue;
 
           const sec2 = cand2[0];
@@ -344,7 +449,7 @@ $run.addEventListener("click", async () => {
               탐구1배정: toAbbrevSectionName(sec1),
               탐구2배정: toAbbrevSectionName(sec2),
               미배정사유: "",
-              비고: phase === "HARD" ? "정원 100% 허용" : "",
+              비고: capType === "HARD" ? "정원 100% 허용" : "",
             });
           }
           return true;
@@ -362,8 +467,7 @@ $run.addEventListener("click", async () => {
       if (groupAssigned) continue;
 
       // 2) 그룹 단위 실패 → 같은 과목 안에서 학생 단위 분할 배정
-      //    (여기서 절대 다른 과목으로는 안 넘어감)
-      groupNote = "같은 반 조합 분할(정원/충돌)";
+      const groupNote = "같은 반 조합 분할(정원/충돌)";
 
       for (const s of groupStudents) {
         const res = assignOneStudent(s);
@@ -390,13 +494,64 @@ $run.addEventListener("click", async () => {
           탐구1배정: toAbbrevSectionName(res.sec1),
           탐구2배정: toAbbrevSectionName(res.sec2),
           미배정사유: "",
-          비고: res.phase === "HARD" ? `${groupNote} / 정원 100% 허용` : groupNote,
+          비고: res.capType === "HARD" ? `${groupNote} / 정원 100% 허용` : groupNote,
         });
       }
     }
+    
+    // =========================
+    // 7) 최종 검증 (안전장치)
+    // =========================
+    log("최종 배정 결과 검증 시작...");
+    let conflictErrors = 0;
+    for (const r of assigned) {
+        if (r.미배정사유) continue; // 미배정 학생은 검증 제외
+
+        const home = r.home;
+        const mandSlots = mandatorySlotsByHome.get(home) ?? new Set();
+        
+        const sec1Name = Object.keys(Object.fromEntries(PREFIX_TO_ABBR)).find(k => r.탐구1배정.startsWith(PREFIX_TO_ABBR.find(p=>p[1]===r.탐구1배정.slice(0, -1))?.[0] ?? ''));
+        const sec2Name = Object.keys(Object.fromEntries(PREFIX_TO_ABBR)).find(k => r.탐구2배정.startsWith(PREFIX_TO_ABBR.find(p=>p[1]===r.탐구2배정.slice(0, -1))?.[0] ?? ''));
+
+        const findSectionByName = (abbrName) => {
+            for(const [name, sec] of sections.entries()){
+                if(toAbbrevSectionName(name) === abbrName) return sec;
+            }
+            return null;
+        }
+
+        const sec1Info = findSectionByName(r.탐구1배정);
+        const sec2Info = findSectionByName(r.탐구2배정);
+
+        let conflict = false;
+        if (sec1Info && hasConflict(sec1Info.slots, mandSlots)) {
+            conflict = true;
+        }
+        if (sec2Info && hasConflict(sec2Info.slots, mandSlots)) {
+            conflict = true;
+        }
+        if (sec1Info && sec2Info && hasConflict(sec1Info.slots, sec2Info.slots)) {
+            conflict = true;
+        }
+        
+        if (conflict) {
+            conflictErrors++;
+            log(`[FATAL ERROR] 학생 ${r.id} (${r.home}반) 배정 결과가 필수 시간과 충돌합니다! 미배정으로 강제 변경합니다.`);
+            r.미배정사유 = "배정 후 충돌 발견(시스템 오류)";
+            r.비고 = r.탐구1배정 + "/" + r.탐구2배정;
+            r.탐구1배정 = "";
+            r.탐구2배정 = "";
+        }
+    }
+    if (conflictErrors > 0) {
+        log(`[FATAL ERROR] 총 ${conflictErrors}건의 시간 충돌이 감지되었습니다.`);
+    } else {
+        log("최종 검증 완료. 시간 충돌 없음.");
+    }
+
 
     // =========================
-    // 7) 결과 엑셀 생성
+    // 8) 결과 엑셀 생성
     // =========================
     const out = new ExcelJS.Workbook();
 
@@ -415,6 +570,7 @@ $run.addEventListener("click", async () => {
     $download.disabled = false;
     log("배정 완료");
   } catch (e) {
+    console.error(e);
     log("에러: " + e.message);
   }
 });
